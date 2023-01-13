@@ -1,0 +1,33 @@
+digraph ft_send {
+	fontname="Helvetica,Arial,sans-serif"
+	node [fontname="Helvetica,Arial,sans-serif"]
+	edge [fontname="Helvetica,Arial,sans-serif"]
+
+	label="FT1_Receiver";
+	labelloc="t";
+
+	start [label="start   | we got FT_INIT"];
+	fail [shape=doublecircle];
+	done [shape=doublecircle];
+
+	// peer offline (how)
+	start -> fail [label="peer offline"]
+
+	start -> starting [label="send FT_INIT_ACK"];
+	starting -> starting [label="if timeout or get FT_INIT send FT_INIT_ACK"];
+	starting -> got_data [label="got FT_DATA"];
+	starting -> fail [label="if timeout too often"];
+
+	got_data -> fail [label="peer offline"];
+
+	subgraph cluster_data {
+		label="for each data chunk";
+		style=filled;
+
+		got_data -> wait_for_all_data [label="send FT_DATA_ACK"];
+	}
+
+	wait_for_all_data -> fail [label="peer offline"];
+	wait_for_all_data -> done [label="all chunks received and acked"];
+}
+
