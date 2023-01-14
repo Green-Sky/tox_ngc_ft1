@@ -31,12 +31,35 @@ typedef enum NGC_FT1_file_kind /*: uint8_t*/ {
 	// peer pub key + msg_id
 	NGC_HS1_MESSAGE_BY_ID = 1u, // history sync PoC 1
 
+	// id: TOX_FILE_ID_LENGTH (32) bytes
+	// this is basically and id and probably not a hash, like the tox friend api
+	// this id can be unique between 2 peers
+	ID = 8u,
+
+	// id: hash of the info, like a torrent infohash (using the same hash as the data)
+	// TODO: determain internal format
+	// draft: (for single file)
+	//   - 256 bytes | filename
+	//   - 8bytes | file size
+	//   - fixed chunk size of 4kb
+	//   - array of chunk hashes (ids) [
+	//     - SHAX bytes
+	//   - ]
+	HASH_SHA1_INFO,
+	HASH_SHA2_INFO,
+
+	// id: hash of the content
+	// TODO: fixed chunk size or variable (defined in info)
+	// if "variable" sized, it can be aliased with TORRENT_VX_CHUNK in the implementation
+	HASH_SHA1_CHUNK,
+	HASH_SHA2_CHUNK,
+
 	// :)
 	// draft for fun and profit
 	// TODO: should we even support v1?
 	// TODO: design the same thing again for tox? (msg_pack instead of bencode?)
 	// id: infohash
-	TORRENT_V1_METAINFO = 8u,
+	TORRENT_V1_METAINFO,
 	// id: sha1
 	TORRENT_V1_CHUNK, // alias with SHA1_CHUNK?
 
