@@ -262,7 +262,7 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx) {
 								while (tf.ssb.size() < 1) {
 									std::vector<uint8_t> new_data;
 
-									size_t chunk_size = std::min<size_t>(10u, tf.file_size - tf.file_size_current);
+									size_t chunk_size = std::min<size_t>(400u, tf.file_size - tf.file_size_current);
 									if (chunk_size == 0) {
 										// TODO: set to finishing?
 										break; // we done
@@ -810,6 +810,8 @@ static void _handle_FT1_DATA_ACK(
 		fprintf(stderr, "FT: data_ack with misaligned data\n");
 		return;
 	}
+
+	transfer.time_since_activity = 0.f;
 
 	while (curser < length) {
 		uint16_t seq_id = data[curser++];
