@@ -17,8 +17,15 @@ extern "C" {
 typedef struct NGC_FT1 NGC_FT1;
 
 struct NGC_FT1_options {
-	// TODO: expose some parameters
-	int tmp;
+	// TODO
+	size_t acks_per_packet; // 5
+
+	float init_retry_timeout_after; // 10sec
+
+	float sending_resend_without_ack_after; // 5sec
+	float sending_give_up_after; // 30sec
+
+	size_t packet_window_size; // 2
 };
 
 // uint16_t ?
@@ -76,7 +83,8 @@ bool NGC_FT1_register_ext(NGC_FT1* ngc_ft1_ctx, NGC_EXT_CTX* ngc_ext_ctx);
 void NGC_FT1_kill(NGC_FT1* ngc_ft1_ctx);
 
 // ========== iterate ==========
-void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx);
+// time_delta in seconds
+void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta);
 
 // TODO: announce
 // ========== request ==========

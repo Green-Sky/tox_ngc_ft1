@@ -208,8 +208,7 @@ void NGC_FT1_kill(NGC_FT1* ngc_ft1_ctx) {
 	delete ngc_ft1_ctx;
 }
 
-void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx) {
-//void NGC_FT1_iterate(Tox *tox, NGC_EXT_CTX* ngc_ext_ctx/*, void *user_data*/) {
+void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 	assert(ngc_ft1_ctx);
 
 	for (auto& [group_number, group] : ngc_ft1_ctx->groups) {
@@ -220,12 +219,12 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx) {
 				if (tf_opt) {
 					auto& tf = tf_opt.value();
 
-					tf.time_since_activity += 0.025f; // TODO: actual delta
+					tf.time_since_activity += time_delta;
 
 					switch (tf.state) {
 						using State = NGC_FT1::Group::Peer::SendTransfer::State;
 						case State::INIT_SENT:
-							if (tf.time_since_activity >= 10.f) {
+							if (tf.time_since_activity >= ngc_ft1_ctx->options.init_retry_timeout_after) {
 								if (tf.inits_sent >= 3) {
 									// delete, timed out 3 times
 									fprintf(stderr, "FT: warning, ft init timed out, deleting\n");
@@ -241,15 +240,15 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx) {
 							}
 							break;
 						case State::SENDING: {
-								tf.ssb.for_each(0.025f, [&](uint16_t id, const std::vector<uint8_t>& data, float& time_since_activity) {
+								tf.ssb.for_each(time_delta, [&](uint16_t id, const std::vector<uint8_t>& data, float& time_since_activity) {
 									// no ack after 5 sec -> resend
-									if (time_since_activity >= 5.f) {
+									if (time_since_activity >= ngc_ft1_ctx->options.sending_resend_without_ack_after) {
 										_send_pkg_FT1_DATA(tox, group_number, peer_number, idx, id, data.data(), data.size());
 										time_since_activity = 0.f;
 									}
 								});
 
-								if (tf.time_since_activity >= 30.f) {
+								if (tf.time_since_activity >= ngc_ft1_ctx->options.sending_give_up_after) {
 									// no ack after 30sec, close ft
 									// TODO: notify app
 									fprintf(stderr, "FT: warning, sending ft in progress timed out, deleting\n");
@@ -260,10 +259,10 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx) {
 								assert(ngc_ft1_ctx->cb_send_data.count(tf.file_kind));
 
 								// if chunks in flight < window size (2)
-								static const size_t window_size {2}; // TODO: expose
-								while (tf.ssb.size() < window_size) {
+								while (tf.ssb.size() < ngc_ft1_ctx->options.packet_window_size) {
 									std::vector<uint8_t> new_data;
 
+									// TODO: parameterize packet size? -> only if JF increases lossy packet size >:)
 									size_t chunk_size = std::min<size_t>(450u, tf.file_size - tf.file_size_current);
 									if (chunk_size == 0) {
 										// TODO: set to finishing?
