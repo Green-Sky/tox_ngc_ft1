@@ -258,11 +258,12 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx) {
 
 								assert(ngc_ft1_ctx->cb_send_data.count(tf.file_kind));
 
-								// if chunks in flight < window size (1 lol)
-								while (tf.ssb.size() < 1) {
+								// if chunks in flight < window size (2)
+								static const size_t window_size {2}; // TODO: expose
+								while (tf.ssb.size() < window_size) {
 									std::vector<uint8_t> new_data;
 
-									size_t chunk_size = std::min<size_t>(400u, tf.file_size - tf.file_size_current);
+									size_t chunk_size = std::min<size_t>(450u, tf.file_size - tf.file_size_current);
 									if (chunk_size == 0) {
 										// TODO: set to finishing?
 										break; // we done
@@ -281,7 +282,9 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx) {
 									uint16_t seq_id = tf.ssb.add(std::move(new_data));
 									_send_pkg_FT1_DATA(tox, group_number, peer_number, idx, seq_id, tf.ssb.entries.at(seq_id).data.data(), tf.ssb.entries.at(seq_id).data.size());
 
+#if defined(EXTRA_LOGGING) && EXTRA_LOGGING == 1
 									fprintf(stderr, "FT: sent data size: %ld (seq %d)\n", chunk_size, seq_id);
+#endif
 
 									tf.file_size_current += chunk_size;
 								}
@@ -623,7 +626,9 @@ static void _handle_FT1_INIT(
 
 	if (accept_ft) {
 		_send_pkg_FT1_INIT_ACK(tox, group_number, peer_number, transfer_id);
+#if defined(EXTRA_LOGGING) && EXTRA_LOGGING == 1
 		fprintf(stderr, "FT: accepted init\n");
+#endif
 		auto& peer = ngc_ft1_ctx->groups[group_number].peers[peer_number];
 		if (peer.recv_transfers[transfer_id].has_value()) {
 			fprintf(stderr, "FT: overwriting existing recv_transfer %d\n", transfer_id);
