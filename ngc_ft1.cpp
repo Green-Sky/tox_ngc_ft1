@@ -10,6 +10,7 @@
 #include <map>
 #include <optional>
 #include <cassert>
+#include <cstdio>
 
 struct SendSequenceBuffer {
 	struct SSBEntry {
