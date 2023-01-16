@@ -224,7 +224,7 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx) {
 					switch (tf.state) {
 						using State = NGC_FT1::Group::Peer::SendTransfer::State;
 						case State::INIT_SENT:
-							if (tf.time_since_activity >= 20.f) {
+							if (tf.time_since_activity >= 10.f) {
 								if (tf.inits_sent >= 3) {
 									// delete, timed out 3 times
 									fprintf(stderr, "FT: warning, ft init timed out, deleting\n");
