@@ -260,7 +260,7 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 									std::vector<uint8_t> new_data;
 
 									// TODO: parameterize packet size? -> only if JF increases lossy packet size >:)
-									size_t chunk_size = std::min<size_t>(490u, tf.file_size - tf.file_size_current);
+									size_t chunk_size = std::min<size_t>(496u, tf.file_size - tf.file_size_current);
 									if (chunk_size == 0) {
 										tf.state = State::FINISHING;
 										break; // we done
