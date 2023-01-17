@@ -71,7 +71,7 @@ struct RecvSequenceBuffer {
 	void add(uint16_t seq_id, std::vector<uint8_t>&& data) {
 		entries[seq_id] = {data};
 		ack_seq_ids.push_back(seq_id);
-		if (ack_seq_ids.size() > 5) { // TODO: magic
+		if (ack_seq_ids.size() > 3) { // TODO: magic
 			ack_seq_ids.pop_front();
 		}
 	}
@@ -142,10 +142,7 @@ struct NGC_FT1 {
 
 					SENDING, // we got the ack and are now sending data
 
-					// is this real?
 					FINISHING, // we sent all data but acks still outstanding????
-
-					FINFIN, // we sent the data_fin and are waiting for the data_fin_ack
 
 					// delete
 				} state;
@@ -263,9 +260,9 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 									std::vector<uint8_t> new_data;
 
 									// TODO: parameterize packet size? -> only if JF increases lossy packet size >:)
-									size_t chunk_size = std::min<size_t>(450u, tf.file_size - tf.file_size_current);
+									size_t chunk_size = std::min<size_t>(490u, tf.file_size - tf.file_size_current);
 									if (chunk_size == 0) {
-										// TODO: set to finishing?
+										tf.state = State::FINISHING;
 										break; // we done
 									}
 
@@ -290,11 +287,21 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 								}
 							}
 							break;
-						case State::FINISHING:
+						case State::FINISHING: // we still have unacked packets
+							tf.ssb.for_each(time_delta, [&](uint16_t id, const std::vector<uint8_t>& data, float& time_since_activity) {
+								// no ack after 5 sec -> resend
+								if (time_since_activity >= ngc_ft1_ctx->options.sending_resend_without_ack_after) {
+									_send_pkg_FT1_DATA(tox, group_number, peer_number, idx, id, data.data(), data.size());
+									time_since_activity = 0.f;
+								}
+							});
+							if (tf.time_since_activity >= ngc_ft1_ctx->options.sending_give_up_after) {
+								// no ack after 30sec, close ft
+								// TODO: notify app
+								fprintf(stderr, "FT: warning, sending ft finishing timed out, deleting\n");
+								tf_opt.reset();
+							}
 							break;
-
-						// finfin o.o
-
 						default: // invalid state, delete
 							fprintf(stderr, "FT: error, ft in invalid state, deleting\n");
 							tf_opt.reset();
@@ -804,8 +811,8 @@ static void _handle_FT1_DATA_ACK(
 	NGC_FT1::Group::Peer::SendTransfer& transfer = peer.send_transfers[transfer_id].value();
 
 	using State = NGC_FT1::Group::Peer::SendTransfer::State;
-	if (transfer.state != State::SENDING) {
-		fprintf(stderr, "FT: data_ack but not in SENDING state\n");
+	if (transfer.state != State::SENDING && transfer.state != State::FINISHING) {
+		fprintf(stderr, "FT: data_ack but not in SENDING or FINISHING state (%d)\n", int(transfer.state));
 		return;
 	}
 
@@ -825,7 +832,8 @@ static void _handle_FT1_DATA_ACK(
 		transfer.ssb.erase(seq_id);
 	}
 
-	if (transfer.file_size == transfer.file_size_current) {
+	// delete if all packets acked
+	if (transfer.file_size == transfer.file_size_current && transfer.ssb.size() == 0) {
 		fprintf(stderr, "FT: %d done\n", transfer_id);
 		peer.send_transfers[transfer_id] = std::nullopt;
 	}
