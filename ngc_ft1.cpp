@@ -506,8 +506,8 @@ static bool _send_pkg_FT1_DATA(const Tox* tox, uint32_t group_number, uint32_t p
 		pkg.push_back(data[i]);
 	}
 
-	// lossless?
-	return tox_group_send_custom_private_packet(tox, group_number, peer_number, true, pkg.data(), pkg.size(), nullptr);
+	// lossy
+	return tox_group_send_custom_private_packet(tox, group_number, peer_number, false, pkg.data(), pkg.size(), nullptr);
 }
 
 static bool _send_pkg_FT1_DATA_ACK(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint8_t transfer_id, const uint16_t* seq_ids, size_t seq_ids_size) {
@@ -521,8 +521,8 @@ static bool _send_pkg_FT1_DATA_ACK(const Tox* tox, uint32_t group_number, uint32
 		pkg.push_back((seq_ids[i] >> (1*8)) & 0xff);
 	}
 
-	// lossless?
-	return tox_group_send_custom_private_packet(tox, group_number, peer_number, true, pkg.data(), pkg.size(), nullptr);
+	// lossy
+	return tox_group_send_custom_private_packet(tox, group_number, peer_number, false, pkg.data(), pkg.size(), nullptr);
 }
 
 #define _DATA_HAVE(x, error) if ((length - curser) < (x)) { error; }
