@@ -103,19 +103,19 @@ struct RecvSequenceBuffer {
 struct NGC_FT1 {
 	NGC_FT1_options options;
 
-	std::unordered_map<NGC_FT1_file_kind, NGC_FT1_recv_request_cb*> cb_recv_request;
-	std::unordered_map<NGC_FT1_file_kind, NGC_FT1_recv_init_cb*> cb_recv_init;
-	std::unordered_map<NGC_FT1_file_kind, NGC_FT1_recv_data_cb*> cb_recv_data;
-	std::unordered_map<NGC_FT1_file_kind, NGC_FT1_send_data_cb*> cb_send_data;
-	std::unordered_map<NGC_FT1_file_kind, void*> ud_recv_request;
-	std::unordered_map<NGC_FT1_file_kind, void*> ud_recv_init;
-	std::unordered_map<NGC_FT1_file_kind, void*> ud_recv_data;
-	std::unordered_map<NGC_FT1_file_kind, void*> ud_send_data;
+	std::unordered_map<uint32_t, NGC_FT1_recv_request_cb*> cb_recv_request;
+	std::unordered_map<uint32_t, NGC_FT1_recv_init_cb*> cb_recv_init;
+	std::unordered_map<uint32_t, NGC_FT1_recv_data_cb*> cb_recv_data;
+	std::unordered_map<uint32_t, NGC_FT1_send_data_cb*> cb_send_data;
+	std::unordered_map<uint32_t, void*> ud_recv_request;
+	std::unordered_map<uint32_t, void*> ud_recv_init;
+	std::unordered_map<uint32_t, void*> ud_recv_data;
+	std::unordered_map<uint32_t, void*> ud_send_data;
 
 	struct Group {
 		struct Peer {
 			struct RecvTransfer {
-				NGC_FT1_file_kind file_kind;
+				uint32_t file_kind;
 				std::vector<uint8_t> file_id;
 
 				enum class State {
@@ -134,7 +134,7 @@ struct NGC_FT1 {
 			size_t next_recv_transfer_idx {0}; // next id will be 0
 
 			struct SendTransfer {
-				NGC_FT1_file_kind file_kind;
+				uint32_t file_kind;
 				std::vector<uint8_t> file_id;
 
 				enum class State {
@@ -166,8 +166,8 @@ struct NGC_FT1 {
 };
 
 // send pkgs
-static bool _send_pkg_FT1_REQUEST(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint8_t file_kind, const uint8_t* file_id, size_t file_id_size);
-static bool _send_pkg_FT1_INIT(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint8_t file_kind, uint64_t file_size, uint8_t transfer_id, const uint8_t* file_id, size_t file_id_size);
+static bool _send_pkg_FT1_REQUEST(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint32_t file_kind, const uint8_t* file_id, size_t file_id_size);
+static bool _send_pkg_FT1_INIT(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint32_t file_kind, uint64_t file_size, uint8_t transfer_id, const uint8_t* file_id, size_t file_id_size);
 static bool _send_pkg_FT1_INIT_ACK(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint8_t transfer_id);
 static bool _send_pkg_FT1_DATA(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint8_t transfer_id, uint16_t sequence_id, const uint8_t* data, size_t data_size);
 static bool _send_pkg_FT1_DATA_ACK(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint8_t transfer_id, const uint16_t* seq_ids, size_t seq_ids_size);
@@ -315,7 +315,7 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 
 void NGC_FT1_register_callback_recv_request(
 	NGC_FT1* ngc_ft1_ctx,
-	NGC_FT1_file_kind file_kind,
+	uint32_t file_kind,
 	NGC_FT1_recv_request_cb* callback,
 	void* user_data
 ) {
@@ -327,7 +327,7 @@ void NGC_FT1_register_callback_recv_request(
 
 void NGC_FT1_register_callback_recv_init(
 	NGC_FT1* ngc_ft1_ctx,
-	NGC_FT1_file_kind file_kind,
+	uint32_t file_kind,
 	NGC_FT1_recv_init_cb* callback,
 	void* user_data
 ) {
@@ -339,7 +339,7 @@ void NGC_FT1_register_callback_recv_init(
 
 void NGC_FT1_register_callback_recv_data(
 	NGC_FT1* ngc_ft1_ctx,
-	NGC_FT1_file_kind file_kind,
+	uint32_t file_kind,
 	NGC_FT1_recv_data_cb* callback,
 	void* user_data
 ) {
@@ -351,7 +351,7 @@ void NGC_FT1_register_callback_recv_data(
 
 void NGC_FT1_register_callback_send_data(
 	NGC_FT1* ngc_ft1_ctx,
-	NGC_FT1_file_kind file_kind,
+	uint32_t file_kind,
 	NGC_FT1_send_data_cb* callback,
 	void* user_data
 ) {
@@ -367,7 +367,7 @@ void NGC_FT1_send_request_private(
 	uint32_t group_number,
 	uint32_t peer_number,
 
-	NGC_FT1_file_kind file_kind,
+	uint32_t file_kind,
 
 	const uint8_t* file_id,
 	size_t file_id_size
@@ -383,13 +383,13 @@ void NGC_FT1_send_request_private(
 bool NGC_FT1_send_init_private(
 	Tox *tox, NGC_FT1* ngc_ft1_ctx,
 	uint32_t group_number, uint32_t peer_number,
-	NGC_FT1_file_kind file_kind,
+	uint32_t file_kind,
 	const uint8_t* file_id, size_t file_id_size,
 	size_t file_size,
 	uint8_t* transfer_id
 ) {
 	//fprintf(stderr, "TODO: init ft for %08X\n", msg_id);
-	fprintf(stderr, "FT: init ft\n");
+	//fprintf(stderr, "FT: init ft\n");
 
 	if (tox_group_peer_get_connection_status(tox, group_number, peer_number, nullptr) == TOX_CONNECTION_NONE) {
 		fprintf(stderr, "FT: error: cant init ft, peer offline\n");
@@ -440,13 +440,15 @@ bool NGC_FT1_send_init_private(
 	return true;
 }
 
-static bool _send_pkg_FT1_REQUEST(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint8_t file_kind, const uint8_t* file_id, size_t file_id_size) {
+static bool _send_pkg_FT1_REQUEST(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint32_t file_kind, const uint8_t* file_id, size_t file_id_size) {
 	// - 1 byte packet id
-	// - 1 byte (TODO: more?) file_kind
+	// - 4 byte file_kind
 	// - X bytes file_id
 	std::vector<uint8_t> pkg;
 	pkg.push_back(NGC_EXT::FT1_REQUEST);
-	pkg.push_back(file_kind);
+	for (size_t i = 0; i < sizeof(file_kind); i++) {
+		pkg.push_back((file_kind>>(i*8)) & 0xff);
+	}
 	for (size_t i = 0; i < file_id_size; i++) {
 		pkg.push_back(file_id[i]);
 	}
@@ -455,16 +457,18 @@ static bool _send_pkg_FT1_REQUEST(const Tox* tox, uint32_t group_number, uint32_
 	return tox_group_send_custom_private_packet(tox, group_number, peer_number, true, pkg.data(), pkg.size(), nullptr);
 }
 
-static bool _send_pkg_FT1_INIT(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint8_t file_kind, uint64_t file_size, uint8_t transfer_id, const uint8_t* file_id, size_t file_id_size) {
+static bool _send_pkg_FT1_INIT(const Tox* tox, uint32_t group_number, uint32_t peer_number, uint32_t file_kind, uint64_t file_size, uint8_t transfer_id, const uint8_t* file_id, size_t file_id_size) {
 	// - 1 byte packet id
-	// - 1 byte (file_kind)
+	// - 4 byte (file_kind)
 	// - 8 bytes (data size)
 	// - 1 byte (temporary_file_tf_id, for this peer only, technically just a prefix to distinguish between simultainious fts)
 	// - X bytes (file_kind dependent id, differnt sizes)
 
 	std::vector<uint8_t> pkg;
 	pkg.push_back(NGC_EXT::FT1_INIT);
-	pkg.push_back(file_kind);
+	for (size_t i = 0; i < sizeof(file_kind); i++) {
+		pkg.push_back((file_kind>>(i*8)) & 0xff);
+	}
 	for (size_t i = 0; i < sizeof(file_size); i++) {
 		pkg.push_back((file_size>>(i*8)) & 0xff);
 	}
@@ -541,13 +545,13 @@ static void _handle_FT1_REQUEST(
 	NGC_FT1* ngc_ft1_ctx = static_cast<NGC_FT1*>(user_data);
 	size_t curser = 0;
 
-	// TODO: might be uint16_t or even larger
-	uint8_t file_kind_u8;
-	_DATA_HAVE(sizeof(file_kind_u8), fprintf(stderr, "FT: packet too small, missing file_kind\n"); return)
-	file_kind_u8 = data[curser++];
-	auto file_kind = static_cast<NGC_FT1_file_kind>(file_kind_u8);
+	uint32_t file_kind {0u};
+	_DATA_HAVE(sizeof(file_kind), fprintf(stderr, "FT: packet too small, missing file_kind\n"); return)
+	for (size_t i = 0; i < sizeof(file_kind); i++, curser++) {
+		file_kind |= uint32_t(data[curser]) << (i*8);
+	}
 
-	fprintf(stderr, "FT: got FT request with file_kind %u [", file_kind_u8);
+	fprintf(stderr, "FT: got FT request with file_kind %u [", file_kind);
 	for (size_t curser_copy = curser; curser_copy < length; curser_copy++) {
 		fprintf(stderr, "%02X", data[curser_copy]);
 	}
@@ -582,13 +586,12 @@ static void _handle_FT1_INIT(
 	NGC_FT1* ngc_ft1_ctx = static_cast<NGC_FT1*>(user_data);
 	size_t curser = 0;
 
-	// - 1 byte (file_kind)
-
-	// TODO: might be uint16_t or even larger
-	uint8_t file_kind_u8;
-	_DATA_HAVE(sizeof(file_kind_u8), fprintf(stderr, "FT: packet too small, missing file_kind\n"); return)
-	file_kind_u8 = data[curser++];
-	auto file_kind = static_cast<NGC_FT1_file_kind>(file_kind_u8);
+	// - 4 byte (file_kind)
+	uint32_t file_kind {0u};
+	_DATA_HAVE(sizeof(file_kind), fprintf(stderr, "FT: packet too small, missing file_kind\n"); return)
+	for (size_t i = 0; i < sizeof(file_kind); i++, curser++) {
+		file_kind |= uint32_t(data[curser]) << (i*8);
+	}
 
 	// - 8 bytes (data size)
 	size_t file_size {0u};
@@ -605,7 +608,7 @@ static void _handle_FT1_INIT(
 	// - X bytes (file_kind dependent id, differnt sizes)
 
 	const std::vector file_id(data+curser, data+curser+(length-curser));
-	fprintf(stderr, "FT: got FT init with file_kind:%u file_size:%lu tf_id:%u [", file_kind_u8, file_size, transfer_id);
+	fprintf(stderr, "FT: got FT init with file_kind:%u file_size:%lu tf_id:%u [", file_kind, file_size, transfer_id);
 	for (size_t curser_copy = curser; curser_copy < length; curser_copy++) {
 		fprintf(stderr, "%02X", data[curser_copy]);
 	}
