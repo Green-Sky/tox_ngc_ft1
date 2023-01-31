@@ -219,7 +219,7 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 			//for (auto& tf_opt : peer.send_transfers) {
 			for (size_t idx = 0; idx < peer.send_transfers.size(); idx++) {
 				auto& tf_opt = peer.send_transfers[idx];
-				if (tf_opt) {
+				if (tf_opt.has_value()) {
 					auto& tf = tf_opt.value();
 
 					tf.time_since_activity += time_delta;
@@ -880,7 +880,7 @@ static void _handle_FT1_DATA_ACK(
 	// delete if all packets acked
 	if (transfer.file_size == transfer.file_size_current && transfer.ssb.size() == 0) {
 		fprintf(stderr, "FT: %d done\n", transfer_id);
-		peer.send_transfers[transfer_id] = std::nullopt;
+		peer.send_transfers[transfer_id].reset();
 	}
 }
 
