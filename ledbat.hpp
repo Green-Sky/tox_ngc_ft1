@@ -29,17 +29,17 @@ struct LEDBAT {
 		static_assert(maximum_segment_size == 574); // mesured in wireshark
 
 		// ledbat++ says 60ms, we might need other values if relayed
-		const float target_delay {0.060f};
-		//const float target_delay {0.030f};
+		//const float target_delay {0.060f};
+		const float target_delay {0.030f};
 		//const float target_delay {0.120f}; // 2x if relayed?
 
 		// TODO: use a factor for multiple of rtt
-		static constexpr size_t current_delay_filter_window {16*4*2};
+		static constexpr size_t current_delay_filter_window {16*4};
 
 		//static constexpr size_t rtt_buffer_size_max {2000};
 
-		float max_byterate_allowed {10*1024*1024}; // 10MiB/s
-		//float max_byterate_allowed {2*1024*1024};
+		//float max_byterate_allowed {10*1024*1024}; // 10MiB/s
+		float max_byterate_allowed {1*1024*1024};
 
 	public:
 		LEDBAT(void);
@@ -54,6 +54,9 @@ struct LEDBAT {
 		// take time since last sent into account
 		// respect max_byterate_allowed
 		size_t canSend(void) const;
+
+		// get the list of timed out seq_ids
+		std::vector<SeqIDType> getTimeouts(void) const;
 
 	public: // callbacks
 		// data size is without overhead

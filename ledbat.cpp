@@ -11,31 +11,18 @@
 #include <iostream>
 #include <limits>
 
+// https://youtu.be/0HRwNSA-JYM
+
+inline constexpr bool PLOTTING = false;
+
 LEDBAT::LEDBAT(void) {
 	_time_start_offset = clock::now();
-
-	{ // add some high delay values
-		// spec want +inf
-		//_rtt_buffer.push_back(_base_delay);
-		//_rtt_buffer.push_back(_base_delay);
-		//_rtt_buffer.push_back(_base_delay);
-	}
 }
 
 size_t LEDBAT::canSend(void) const {
 	if (_in_flight.empty()) {
 		return 496u;
 	}
-
-	//const float time_since_last_sent {std::min(
-		//getTimeNow() - std::get<1>(_in_flight.back()),
-		//0.01f // 10ms max
-	//)};
-
-	//const float bps {std::min(
-		//(_cwnd / getCurrentDelay()),
-		//max_byterate_allowed
-	//)};
 
 	const int64_t cspace = _cwnd - _in_flight_bytes;
 	if (cspace < 496) {
@@ -49,24 +36,27 @@ size_t LEDBAT::canSend(void) const {
 
 	size_t space = std::ceil(std::min(cspace, fspace) / 496.f) * 496.f;
 
-	// data size, no overhead
-	//const int64_t can_send_size {std::min<int64_t>(
-		//bps * time_since_last_sent - segment_overhead,
-		//maximum_segment_size - segment_overhead
-	//)};
-	//const int64_t can_send_size {static_cast<int64_t>(bps * time_since_last_sent - segment_overhead)};
-
-	//if (can_send_size < 100) {
-		//return 0;
-	//} else {
-		//return can_send_size;
-	//}
-
 	return space;
 }
 
+std::vector<LEDBAT::SeqIDType> LEDBAT::getTimeouts(void) const {
+	std::vector<LEDBAT::SeqIDType> list;
+
+	// after 2 delays we trigger timeout
+	const auto now_adjusted = getTimeNow() - getCurrentDelay()*2.f;
+
+	for (const auto& [seq, time_stamp, size] : _in_flight) {
+		if (now_adjusted > time_stamp) {
+			list.push_back(seq);
+		}
+	}
+
+	return list;
+}
+
+
 void LEDBAT::onSent(SeqIDType seq, size_t data_size) {
-	if (true) {
+	if (false) {
 		for (const auto& it : _in_flight) {
 			assert(std::get<0>(it) != seq);
 		}
@@ -107,12 +97,7 @@ void LEDBAT::onAck(std::vector<SeqIDType> seqs) {
 		return; // not found, ignore
 	}
 
-
-	//addRTT(now - most_recent);
-
 	updateWindows();
-
-	// update cto - no? we dont handle timeouts
 }
 
 void LEDBAT::onLoss(SeqIDType seq, bool discard) {
@@ -129,7 +114,7 @@ void LEDBAT::onLoss(SeqIDType seq, bool discard) {
 
 	// at most once per rtt?
 
-	if (false) {
+	if (PLOTTING) {
 		std::cerr << "CCA: onLoss: TIME: " << getTimeNow() << "\n";
 	}
 
@@ -243,7 +228,7 @@ void LEDBAT::updateWindows(void) {
 			} // no else, we on point. very unlikely with float
 		}
 
-		if (false) { // plotting
+		if (PLOTTING) { // plotting
 			std::cerr << std::fixed << "CCA: onAck: TIME: " << now << " cwnd: " << _cwnd << "\n";
 			std::cerr << std::fixed << "CCA: onAck: TIME: " << now << " fwnd: " << _fwnd << "\n";
 			std::cerr << std::fixed << "CCA: onAck: TIME: " << now << " current_delay: " << current_delay << "\n";

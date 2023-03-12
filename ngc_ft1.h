@@ -22,10 +22,8 @@ struct NGC_FT1_options {
 
 	float init_retry_timeout_after; // 10sec
 
-	float sending_resend_without_ack_after; // 5sec
+	//float sending_resend_without_ack_after; // 5sec
 	float sending_give_up_after; // 30sec
-
-	size_t packet_window_size; // 2
 };
 
 // uint32_t - same as tox friend ft

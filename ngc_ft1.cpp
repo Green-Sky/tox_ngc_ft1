@@ -11,6 +11,7 @@
 // TODO: should i really use both?
 #include <unordered_map>
 #include <map>
+#include <set>
 #include <optional>
 #include <cassert>
 #include <cstdio>
@@ -216,7 +217,9 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 
 	for (auto& [group_number, group] : ngc_ft1_ctx->groups) {
 		for (auto& [peer_number, peer] : group.peers) {
-			//for (auto& tf_opt : peer.send_transfers) {
+			auto timeouts = peer.cca.getTimeouts();
+			std::set<LEDBAT::SeqIDType> timeouts_set{timeouts.cbegin(), timeouts.cend()};
+
 			for (size_t idx = 0; idx < peer.send_transfers.size(); idx++) {
 				auto& tf_opt = peer.send_transfers[idx];
 				if (tf_opt.has_value()) {
@@ -245,11 +248,13 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 						case State::SENDING: {
 								tf.ssb.for_each(time_delta, [&](uint16_t id, const std::vector<uint8_t>& data, float& time_since_activity) {
 									// no ack after 5 sec -> resend
-									if (time_since_activity >= ngc_ft1_ctx->options.sending_resend_without_ack_after) {
+									//if (time_since_activity >= ngc_ft1_ctx->options.sending_resend_without_ack_after) {
+									if (timeouts_set.count({idx, id})) {
 										// TODO: can fail
 										_send_pkg_FT1_DATA(tox, group_number, peer_number, idx, id, data.data(), data.size());
 										peer.cca.onLoss({idx, id}, false);
 										time_since_activity = 0.f;
+										timeouts_set.erase({idx, id});
 									}
 								});
 
@@ -261,6 +266,7 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 									// clean up cca
 									tf.ssb.for_each(time_delta, [&](uint16_t id, const std::vector<uint8_t>& data, float& time_since_activity) {
 										peer.cca.onLoss({idx, id}, true);
+										timeouts_set.erase({idx, id});
 									});
 
 									tf_opt.reset();
@@ -322,10 +328,12 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 						case State::FINISHING: // we still have unacked packets
 							tf.ssb.for_each(time_delta, [&](uint16_t id, const std::vector<uint8_t>& data, float& time_since_activity) {
 								// no ack after 5 sec -> resend
-								if (time_since_activity >= ngc_ft1_ctx->options.sending_resend_without_ack_after) {
+								//if (time_since_activity >= ngc_ft1_ctx->options.sending_resend_without_ack_after) {
+								if (timeouts_set.count({idx, id})) {
 									_send_pkg_FT1_DATA(tox, group_number, peer_number, idx, id, data.data(), data.size());
 									peer.cca.onLoss({idx, id}, false);
 									time_since_activity = 0.f;
+									timeouts_set.erase({idx, id});
 								}
 							});
 							if (tf.time_since_activity >= ngc_ft1_ctx->options.sending_give_up_after) {
@@ -336,6 +344,7 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 								// clean up cca
 								tf.ssb.for_each(time_delta, [&](uint16_t id, const std::vector<uint8_t>& data, float& time_since_activity) {
 									peer.cca.onLoss({idx, id}, true);
+									timeouts_set.erase({idx, id});
 								});
 
 								tf_opt.reset();
