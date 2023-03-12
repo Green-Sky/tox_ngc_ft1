@@ -187,18 +187,18 @@ void LEDBAT::updateWindows(void) {
 	if (now - _last_cwnd >= current_delay) {
 		const float queuing_delay {current_delay - _base_delay};
 
-		_fwnd = max_byterate_allowed * getCurrentDelay();
+		_fwnd = max_byterate_allowed * current_delay;
 		_fwnd *= 1.3f; // try do balance conservative algo a bit, current_delay
 
-		//const float gain {1}; // TODO: move and increase
 		float gain {1.f / std::min(16.f, std::ceil(2.f*target_delay/_base_delay))};
 		//gain *= 400.f; // from packets to bytes ~
-		gain *= _recently_acked_data/10.f; // from packets to bytes ~
+		gain *= _recently_acked_data/5.f; // from packets to bytes ~
 		//gain *= 0.1f;
 
 		if (_recently_lost_data) {
 			_cwnd = std::clamp(
-				_cwnd / 2.f,
+				//_cwnd / 2.f,
+				_cwnd / 1.6f,
 				2.f * maximum_segment_size,
 				_cwnd
 			);
@@ -207,23 +207,22 @@ void LEDBAT::updateWindows(void) {
 			// "Multiplicative decrease"
 			const float constant {2.f}; // spec recs 1
 			if (queuing_delay < target_delay) {
-				_cwnd += gain;
 				_cwnd = std::min(
 					_cwnd + gain,
 					_fwnd
 				);
 			} else if (queuing_delay > target_delay) {
 				_cwnd = std::clamp(
-					_cwnd + std::max( // TODO: where to put bytes_newly_acked
+					_cwnd + std::max(
 						gain - constant * _cwnd * (queuing_delay / target_delay - 1.f),
 						-_cwnd/2.f // at most halve
 					),
 
 					// never drop below 2 "packets" in flight
-					//2.f * maximum_segment_size,
-					2.f * 496,
+					2.f * maximum_segment_size,
 
-					current_delay * max_byterate_allowed // cap rate
+					// cap rate
+					_fwnd
 				);
 			} // no else, we on point. very unlikely with float
 		}
