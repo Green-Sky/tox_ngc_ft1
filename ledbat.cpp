@@ -15,26 +15,26 @@
 
 inline constexpr bool PLOTTING = false;
 
-LEDBAT::LEDBAT(void) {
+LEDBAT::LEDBAT(size_t maximum_segment_data_size) : MAXIMUM_SEGMENT_DATA_SIZE(maximum_segment_data_size) {
 	_time_start_offset = clock::now();
 }
 
 size_t LEDBAT::canSend(void) const {
 	if (_in_flight.empty()) {
-		return 496u;
+		return MAXIMUM_SEGMENT_DATA_SIZE;
 	}
 
 	const int64_t cspace = _cwnd - _in_flight_bytes;
-	if (cspace < 496) {
+	if (cspace < MAXIMUM_SEGMENT_DATA_SIZE) {
 		return 0u;
 	}
 
 	const int64_t fspace = _fwnd - _in_flight_bytes;
-	if (fspace < 496) {
+	if (fspace < MAXIMUM_SEGMENT_DATA_SIZE) {
 		return 0u;
 	}
 
-	size_t space = std::ceil(std::min(cspace, fspace) / 496.f) * 496.f;
+	size_t space = std::ceil(std::min<float>(cspace, fspace) / MAXIMUM_SEGMENT_DATA_SIZE) * MAXIMUM_SEGMENT_DATA_SIZE;
 
 	return space;
 }
@@ -56,14 +56,15 @@ std::vector<LEDBAT::SeqIDType> LEDBAT::getTimeouts(void) const {
 
 
 void LEDBAT::onSent(SeqIDType seq, size_t data_size) {
-	if (false) {
+	if (true) {
 		for (const auto& it : _in_flight) {
 			assert(std::get<0>(it) != seq);
 		}
 	}
-	_in_flight.push_back({seq, getTimeNow(), data_size + segment_overhead});
-	_in_flight_bytes += data_size + segment_overhead;
-	_recently_sent_bytes += data_size + segment_overhead;
+
+	_in_flight.push_back({seq, getTimeNow(), data_size + SEGMENT_OVERHEAD});
+	_in_flight_bytes += data_size + SEGMENT_OVERHEAD;
+	_recently_sent_bytes += data_size + SEGMENT_OVERHEAD;
 }
 
 void LEDBAT::onAck(std::vector<SeqIDType> seqs) {
@@ -88,7 +89,7 @@ void LEDBAT::onAck(std::vector<SeqIDType> seqs) {
 			most_recent = std::max(most_recent, std::get<1>(*it));
 			_in_flight_bytes -= std::get<2>(*it);
 			_recently_acked_data += std::get<2>(*it);
-			assert(_in_flight_bytes >= 0);
+			assert(_in_flight_bytes >= 0); // TODO: this triggers
 			_in_flight.erase(it);
 		}
 	}
@@ -102,6 +103,7 @@ void LEDBAT::onAck(std::vector<SeqIDType> seqs) {
 
 void LEDBAT::onLoss(SeqIDType seq, bool discard) {
 	auto it = std::find_if(_in_flight.begin(), _in_flight.end(), [seq](const auto& v) -> bool {
+		assert(!std::isnan(std::get<1>(v)));
 		return std::get<0>(v) == seq;
 	});
 
@@ -122,7 +124,9 @@ void LEDBAT::onLoss(SeqIDType seq, bool discard) {
 	if (discard) {
 		_in_flight_bytes -= std::get<2>(*it);
 		assert(_in_flight_bytes >= 0);
+		_in_flight.erase(it);
 	}
+	// TODO: reset timestamp?
 
 	updateWindows();
 }
@@ -197,9 +201,9 @@ void LEDBAT::updateWindows(void) {
 
 		if (_recently_lost_data) {
 			_cwnd = std::clamp(
-				//_cwnd / 2.f,
-				_cwnd / 1.6f,
-				2.f * maximum_segment_size,
+				_cwnd / 2.f,
+				//_cwnd / 1.6f,
+				2.f * MAXIMUM_SEGMENT_SIZE,
 				_cwnd
 			);
 		} else {
@@ -219,7 +223,7 @@ void LEDBAT::updateWindows(void) {
 					),
 
 					// never drop below 2 "packets" in flight
-					2.f * maximum_segment_size,
+					2.f * MAXIMUM_SEGMENT_SIZE,
 
 					// cap rate
 					_fwnd

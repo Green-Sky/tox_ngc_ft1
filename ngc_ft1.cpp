@@ -119,7 +119,7 @@ struct NGC_FT1 {
 
 	struct Group {
 		struct Peer {
-			LEDBAT cca;
+			LEDBAT cca{500-4}; // TODO: replace with tox_group_max_custom_lossy_packet_length()-4
 
 			struct RecvTransfer {
 				uint32_t file_kind;
@@ -289,7 +289,9 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 									//size_t chunk_size = std::min<size_t>(496u, tf.file_size - tf.file_size_current);
 									//size_t chunk_size = std::min<size_t>(can_packet_size, tf.file_size - tf.file_size_current);
 									size_t chunk_size = std::min<size_t>({
-										496u,
+										//496u,
+										//996u,
+										peer.cca.MAXIMUM_SEGMENT_DATA_SIZE,
 										can_packet_size,
 										tf.file_size - tf.file_size_current
 									});

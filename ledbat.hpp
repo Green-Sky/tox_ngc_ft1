@@ -18,19 +18,24 @@ struct LEDBAT {
 		static constexpr size_t UDP_HEADER_SIZE {8};
 
 		// TODO: tcp AND IPv6 will be different
-		static constexpr size_t segment_overhead {
+		static constexpr size_t SEGMENT_OVERHEAD {
 			4+ // ft overhead
 			46+ // tox?
 			UDP_HEADER_SIZE+
 			IPV4_HEADER_SIZE
 		};
 
-		static constexpr size_t maximum_segment_size {496 + segment_overhead}; // tox 500 - 4 from ft
-		static_assert(maximum_segment_size == 574); // mesured in wireshark
+		// TODO: make configurable, set with tox ngc lossy packet size
+		//const size_t MAXIMUM_SEGMENT_DATA_SIZE {1000-4};
+		const size_t MAXIMUM_SEGMENT_DATA_SIZE {500-4};
+
+		//static constexpr size_t maximum_segment_size {496 + segment_overhead}; // tox 500 - 4 from ft
+		const size_t MAXIMUM_SEGMENT_SIZE {MAXIMUM_SEGMENT_DATA_SIZE + SEGMENT_OVERHEAD}; // tox 500 - 4 from ft
+		//static_assert(maximum_segment_size == 574); // mesured in wireshark
 
 		// ledbat++ says 60ms, we might need other values if relayed
-		const float target_delay {0.060f};
-		//const float target_delay {0.030f};
+		//const float target_delay {0.060f};
+		const float target_delay {0.030f};
 		//const float target_delay {0.120f}; // 2x if relayed?
 
 		// TODO: use a factor for multiple of rtt
@@ -41,7 +46,7 @@ struct LEDBAT {
 		float max_byterate_allowed {10*1024*1024}; // 10MiB/s
 
 	public:
-		LEDBAT(void);
+		LEDBAT(size_t maximum_segment_data_size);
 
 		// return the current believed window in bytes of how much data can be inflight,
 		// without overstepping the delay requirement
@@ -86,7 +91,7 @@ struct LEDBAT {
 	private: // state
 		//float _cto {2.f}; // congestion timeout value in seconds
 
-		float _cwnd {2.f * maximum_segment_size}; // in bytes
+		float _cwnd {2.f * MAXIMUM_SEGMENT_SIZE}; // in bytes
 		float _base_delay {2.f}; // lowest mesured delay in _rtt_buffer in seconds
 
 		float _last_cwnd {0.f}; // timepoint of last cwnd correction
