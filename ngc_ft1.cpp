@@ -277,7 +277,7 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 
 								// if chunks in flight < window size (2)
 								//while (tf.ssb.size() < ngc_ft1_ctx->options.packet_window_size) {
-								int64_t can_packet_size {peer.cca.canSend()};
+								int64_t can_packet_size {static_cast<int64_t>(peer.cca.canSend())};
 								//if (can_packet_size) {
 									//std::cerr << "FT: can_packet_size: " << can_packet_size;
 								//}
@@ -292,7 +292,7 @@ void NGC_FT1_iterate(Tox *tox, NGC_FT1* ngc_ft1_ctx, float time_delta) {
 										//496u,
 										//996u,
 										peer.cca.MAXIMUM_SEGMENT_DATA_SIZE,
-										can_packet_size,
+										static_cast<size_t>(can_packet_size),
 										tf.file_size - tf.file_size_current
 									});
 									if (chunk_size == 0) {
