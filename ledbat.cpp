@@ -5,6 +5,7 @@
 #include <cmath>
 #include <deque>
 #include <cstdint>
+#include <tuple>
 #include <cassert>
 
 #include <iomanip>
